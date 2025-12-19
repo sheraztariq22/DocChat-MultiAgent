@@ -1,25 +1,23 @@
-from ibm_watsonx_ai.foundation_models import ModelInference
-from ibm_watsonx_ai import Credentials, APIClient
+import google.generativeai as genai
 from config.settings import settings
 import re
 import logging
 
 logger = logging.getLogger(__name__)
 
-credentials = Credentials(
-                   url = "https://us-south.ml.cloud.ibm.com",
-                  )
-client = APIClient(credentials)
+# Configure Gemini API
+genai.configure(api_key=settings.GOOGLE_API_KEY)
 
 class RelevanceChecker:
     def __init__(self):
-        # Initialize the WatsonX ModelInference
-        self.model = ModelInference(
-            model_id="ibm/granite-3-3-8b-instruct",
-            credentials=credentials,
-            project_id="skills-network",
-            params={"temperature": 0, "max_tokens": 10},
-        )
+        # Initialize the Gemini model
+        self.model = genai.GenerativeModel('gemini-pro')
+        
+        # Configure generation settings
+        self.generation_config = {
+            'temperature': 0,
+            'max_output_tokens': 10,
+        }
 
     def check(self, question: str, retriever, k=3) -> str:
         """
@@ -63,26 +61,16 @@ class RelevanceChecker:
         **Respond ONLY with one of the following labels: CAN_ANSWER, PARTIAL, NO_MATCH**
         """
 
-        # Call the LLM
+        # Call the Gemini model
         try:
-            response = self.model.chat(
-                messages=[
-                    {
-                        "role": "user",
-                        "content": prompt  # Changed from list to string
-                    }
-                ]
+            response = self.model.generate_content(
+                prompt,
+                generation_config=self.generation_config
             )
+            llm_response = response.text.strip().upper()
+            logger.debug(f"LLM response: {llm_response}")
         except Exception as e:
             logger.error(f"Error during model inference: {e}")
-            return "NO_MATCH"
-
-        # Extract the content from the response
-        try:
-            llm_response = response['choices'][0]['message']['content'].strip().upper()
-            logger.debug(f"LLM response: {llm_response}")
-        except (IndexError, KeyError) as e:
-            logger.error(f"Unexpected response structure: {e}")
             return "NO_MATCH"
 
         print(f"Checker response: {llm_response}")
