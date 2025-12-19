@@ -3,8 +3,8 @@ from .constants import MAX_FILE_SIZE, MAX_TOTAL_SIZE, ALLOWED_TYPES
 import os
 
 class Settings(BaseSettings):
-    # Required settings
-    OPENAI_API_KEY: str
+    # Required settings - Changed from OPENAI_API_KEY to GOOGLE_API_KEY
+    GOOGLE_API_KEY: str
 
     # Optional settings with defaults
     MAX_FILE_SIZE: int = MAX_FILE_SIZE
@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     # Logging settings
     LOG_LEVEL: str = "INFO"
 
-    # New cache settings with type annotations
+    # Cache settings with type annotations
     CACHE_DIR: str = "document_cache"
     CACHE_EXPIRE_DAYS: int = 7
 
