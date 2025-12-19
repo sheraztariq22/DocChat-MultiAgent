@@ -1,31 +1,29 @@
 import json  # Import for JSON serialization
-from ibm_watsonx_ai.foundation_models import ModelInference
-from ibm_watsonx_ai import Credentials, APIClient
+import google.generativeai as genai
 from typing import Dict, List
 from langchain.schema import Document
+from config.settings import settings
 
-credentials = Credentials(
-                   url = "https://us-south.ml.cloud.ibm.com",
-                  )
-client = APIClient(credentials)
+# Configure Gemini API
+genai.configure(api_key=settings.GOOGLE_API_KEY)
 
 class VerificationAgent:
     def __init__(self):
         """
-        Initialize the verification agent with the IBM WatsonX ModelInference.
+        Initialize the verification agent with Google Gemini.
         """
-        # Initialize the WatsonX ModelInference
-        print("Initializing VerificationAgent with IBM WatsonX ModelInference...")
-        self.model = ModelInference(
-            model_id="ibm/granite-4-h-small", 
-            credentials=credentials,
-            project_id="skills-network",
-            params={
-                "max_tokens": 200,            # Adjust based on desired response length
-                "temperature": 0.0,           # Remove randomness for consistency
-            }
-        )
-        print("ModelInference initialized successfully.")
+        print("Initializing VerificationAgent with Google Gemini...")
+        
+        # Initialize the Gemini model
+        self.model = genai.GenerativeModel('gemini-pro')
+        
+        # Configure generation settings
+        self.generation_config = {
+            'temperature': 0.0,
+            'max_output_tokens': 200,
+        }
+        
+        print("Gemini model initialized successfully.")
 
     def sanitize_response(self, response_text: str) -> str:
         """
@@ -150,42 +148,19 @@ class VerificationAgent:
         prompt = self.generate_prompt(answer, context)
         print("Prompt created for the LLM.")
 
-        # Call the LLM to generate the verification report
+        # Call the Gemini model to generate the verification report
         try:
             print("Sending prompt to the model...")
-            response = self.model.chat(
-                messages=[
-                    {
-                        "role": "user",
-                        "content": prompt  # Ensure content is a string
-                    }
-                ]
+            response = self.model.generate_content(
+                prompt,
+                generation_config=self.generation_config
             )
+            llm_response = response.text.strip()
             print("LLM response received.")
+            print(f"Raw LLM response:\n{llm_response}")
         except Exception as e:
             print(f"Error during model inference: {e}")
             raise RuntimeError("Failed to verify answer due to a model error.") from e
-
-        # Extract and process the LLM's response
-        try:
-            llm_response = response['choices'][0]['message']['content'].strip()
-            print(f"Raw LLM response:\n{llm_response}")
-        except (IndexError, KeyError) as e:
-            print(f"Unexpected response structure: {e}")
-            verification_report = {
-                "Supported": "NO",
-                "Unsupported Claims": [],
-                "Contradictions": [],
-                "Relevant": "NO",
-                "Additional Details": "Invalid response structure from the model."
-            }
-            verification_report_formatted = self.format_verification_report(verification_report)
-            print(f"Verification report:\n{verification_report_formatted}")
-            print(f"Context used: {context}")
-            return {
-                "verification_report": verification_report_formatted,
-                "context_used": context
-            }
 
         # Sanitize the response
         sanitized_response = self.sanitize_response(llm_response) if llm_response else ""
