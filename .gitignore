@@ -5,3 +5,4 @@ chroma_db/
 venv/
 app.log
 .DS_Store
+.gradio/
