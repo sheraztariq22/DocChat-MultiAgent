@@ -6,3 +6,5 @@ venv/
 app.log
 .DS_Store
 .gradio/
+
+.document_cache/
